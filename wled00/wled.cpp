@@ -121,7 +121,7 @@ void WiFiEvent(WiFiEvent_t event)
 void WLED::loop()
 {
   handleTime();
-  handleIR();        // 2nd call to function needed for ESP32 to return valid results -- should be good for ESP8266, too
+  // handleIR();        // 2nd call to function needed for ESP32 to return valid results -- should be good for ESP8266, too
   handleConnection();
   handleSerial();
   handleNotifications();
@@ -134,7 +134,7 @@ void WLED::loop()
 
   yield();
   handleIO();
-  handleIR();
+  // handleIR();
   handleAlexa();
 
   yield();
@@ -271,6 +271,8 @@ void WLED::setup()
 #ifdef ARDUINO_ARCH_ESP32
   DEBUG_PRINT(F("esp32 "));
   DEBUG_PRINTLN(ESP.getSdkVersion());
+  DEBUG_PRINT(F("running at core: #"));
+  DEBUG_PRINTLN(xPortGetCoreID());
 #else
   DEBUG_PRINT(F("esp8266 "));
   DEBUG_PRINTLN(ESP.getCoreVersion());
@@ -383,6 +385,9 @@ void WLED::setup()
   #if defined(ARDUINO_ARCH_ESP32) && defined(WLED_DISABLE_BROWNOUT_DET)
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 1); //enable brownout detector
   #endif
+
+    // if (doPublishMqtt) publishMqtt();
+    initIR();
 }
 
 void WLED::beginStrip()

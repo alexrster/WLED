@@ -208,7 +208,7 @@ void handleTransitions()
     updateInterfaces(interfaceUpdateCallMode);
     interfaceUpdateCallMode = 0; //disable
   }
-  if (doPublishMqtt) publishMqtt();
+  // if (doPublishMqtt) publishMqtt();
 
   if (transitionActive && transitionDelayTemp > 0)
   {

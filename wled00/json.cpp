@@ -334,6 +334,8 @@ bool deserializeState(JsonObject root, byte callMode, byte presetId)
     if (ps >= 0) {
       if (!presetId) unloadPlaylist(); //stop playlist if preset changed manually
       applyPreset(ps, callMode);
+
+      doPublishMqtt = true;
       return stateResponse;
     }
 
@@ -356,6 +358,7 @@ bool deserializeState(JsonObject root, byte callMode, byte presetId)
 
   colorUpdated(noNotification ? CALL_MODE_NO_NOTIFY : callMode);
 
+  doPublishMqtt = true;
   return stateResponse;
 }
 

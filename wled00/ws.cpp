@@ -49,6 +49,7 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventTyp
             fileDoc = &jsonBuffer;
             verboseResponse = deserializeState(root);
             fileDoc = nullptr;
+            doPublishMqtt = true;
             if (!interfaceUpdateCallMode) {
               //special case, only on playlist load, avoid sending twice in rapid succession
               if (millis() - lastInterfaceUpdate > 1700) verboseResponse = false;

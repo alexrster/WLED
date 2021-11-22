@@ -628,13 +628,29 @@ void decodeIRJson(uint32_t code)
   }
 }
 
-void initIR()
+void ir_loop(void* _)
 {
+  DEBUG_PRINT(F("IR running at core: #"));
+  DEBUG_PRINTLN(xPortGetCoreID());
+
   if (irEnabled > 0)
   {
     irrecv = new IRrecv(irPin);
     irrecv->enableIRIn();
   }
+
+  while (1) {
+    handleIR();
+    delay(80);
+  }
+}
+
+void initIR()
+{
+  strlcpy(mqttIrTopic, mqttDeviceTopic, 33);
+  strcat_P(mqttIrTopic, PSTR("/ir"));
+
+  xTaskCreatePinnedToCore(ir_loop, "IR", 4000, NULL, 3, &IR_Task, 0);
 }
 
 void handleIR()
@@ -653,9 +669,14 @@ void handleIR()
       {
         if (results.value != 0) // only print results if anything is received ( != 0 )
         {
-          Serial.print("IR recv\r\n0x");
-          Serial.println((uint32_t)results.value, HEX);
-          Serial.println();
+          lastIrValue = (uint32_t)results.value;
+
+          // Serial.print("IR recv\r\n0x");
+          // // Serial.println((uint32_t)results.value, HEX);
+          // Serial.println(lastIrMessage);
+          // Serial.println();
+
+          doPublishMqttIr = true;
         }
         decodeIR(results.value);
         irrecv->resume();
