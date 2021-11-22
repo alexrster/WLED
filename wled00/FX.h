@@ -115,7 +115,7 @@
 #define IS_REVERSE      ((SEGMENT.options & REVERSE     ) == REVERSE     )
 #define IS_SELECTED     ((SEGMENT.options & SELECTED    ) == SELECTED    )
 
-#define MODE_COUNT 187// 255 // WLEDSR: no need to change this value when effects are added / deleted. First 128 for AC, second for SR
+#define MODE_COUNT 188// WLEDSR: First 128 for AC (incl reserved), rest for SR
 
 #define FX_MODE_STATIC                   0
 #define FX_MODE_BLINK                    1
@@ -312,8 +312,9 @@
 #define FX_MODE_WAVESINS               184
 #define FX_MODE_ROCKTAVES              185
 #define FX_MODE_2DAKEMI                186
+#define FX_MODE_CUSTOMEFFECT           187 //WLEDSR Custom Effects
 
-
+#define doubleNull -32768 //WLEDSR Custom Effects
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //    End of Audio Reactive fork (WLEDSR)                                                                                                       //
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -328,6 +329,10 @@ class WS2812FX {
 
   // segment parameters
   public:
+
+    // FastLED array, so we can refer to leds[i] instead of getPixel() and setPixel()
+    CRGB leds[MAX_LEDS+1];                          // See const.h for a value of 1500. The plus 1 is just in case we go over with XY().
+
     typedef struct Segment { // 29 (32 in memory?) bytes
       uint16_t start;
       uint16_t stop;    //segment invalid if stop == 0
@@ -784,6 +789,7 @@ class WS2812FX {
       _mode[FX_MODE_WAVESINS]                = &WS2812FX::mode_wavesins;
       _mode[FX_MODE_ROCKTAVES]               = &WS2812FX::mode_rocktaves;
       _mode[FX_MODE_2DAKEMI]                 = &WS2812FX::mode_2DAkemi;
+      _mode[FX_MODE_CUSTOMEFFECT]            = &WS2812FX::mode_customEffect; //WLEDSR Custom Effects
 
 #ifdef WLEDSR_LARGE
     // _mode[FX_MODE_2DPOOLNOISE]              = &WS2812FX::mode_2DPoolnoise; //code not in fx.cpp
@@ -809,7 +815,7 @@ class WS2812FX {
     }
 
     void
-      finalizeInit(uint16_t countPixels),
+      finalizeInit(),
       service(void),
       blur(uint8_t),
       fill(uint32_t),
@@ -826,7 +832,8 @@ class WS2812FX {
       trigger(void),
       setSegment(uint8_t n, uint16_t start, uint16_t stop, uint8_t grouping = 0, uint8_t spacing = 0),
       resetSegments(),
-      populateDefaultSegments(),
+      makeAutoSegments(),
+      fixInvalidSegments(),
       setPixelColor(uint16_t n, uint32_t c),
       setPixelColor(uint16_t n, uint8_t r, uint8_t g, uint8_t b, uint8_t w = 0),
       show(void),
@@ -840,6 +847,7 @@ class WS2812FX {
       gammaCorrectCol = true,
       applyToAllSelected = true,
       setEffectConfig(uint8_t m, uint8_t s, uint8_t i, uint8_t f1, uint8_t f2, uint8_t f3, uint8_t p), //WLEDSR: add f1,2,3
+      checkSegmentAlignment(void),
       // return true if the strip is being sent pixel updates
       isUpdating(void);
 
@@ -870,6 +878,8 @@ class WS2812FX {
       ablMilliampsMax,
       currentMilliamps,
       triwave16(uint16_t),
+      getLengthTotal(void),
+      getLengthPhysical(void),
       getFps();
 
     uint32_t
@@ -1114,8 +1124,8 @@ class WS2812FX {
       mode_2DWaverly(void),
       mode_2DDrift(void),
       mode_2DColoredBursts(void),
-
-     mode_2DJulia(void);
+      mode_2DJulia(void),
+      mode_customEffect(void);     //WLEDSR Custom Effects
     //  mode_2DPoolnoise(void),
     //  mode_2DTwister(void);
     //  mode_2DCAElementary(void);
@@ -1128,6 +1138,11 @@ class WS2812FX {
 
     bool
       _skipFirstMode; //private? not in AC (anymore)
+
+    //WLEDSR Custom Effects
+    double arti_external_function(uint8_t function, double par1 = doubleNull, double par2 = doubleNull, double par3 = doubleNull, double par4 = doubleNull, double par5 = doubleNull);
+    double arti_get_external_variable(uint8_t variable, double par1 = doubleNull, double par2 = doubleNull, double par3 = doubleNull);
+    void arti_set_external_variable(double value, uint8_t variable, double par1 = doubleNull, double par2 = doubleNull, double par3 = doubleNull);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //    End of Audio Reactive fork (WLEDSR)                                                                                                //
@@ -1147,9 +1162,6 @@ class WS2812FX {
     uint16_t _transitionDur = 750;
 
     uint16_t _cumulativeFps = 2;
-
-    void load_gradient_palette(uint8_t);
-    void handle_palette(void);
 
     bool
       _triggered;
@@ -1184,7 +1196,10 @@ class WS2812FX {
 
     void
       blendPixelColor(uint16_t n, uint32_t color, uint8_t blend),
-      startTransition(uint8_t oldBri, uint32_t oldCol, uint16_t dur, uint8_t segn, uint8_t slot);
+      startTransition(uint8_t oldBri, uint32_t oldCol, uint16_t dur, uint8_t segn, uint8_t slot),
+      estimateCurrentAndLimitBri(void),
+      load_gradient_palette(uint8_t),
+      handle_palette(void);
 
     uint16_t* customMappingTable = nullptr;
     uint16_t  customMappingSize  = 0;
@@ -1425,7 +1440,8 @@ const char JSON_mode_names[] PROGMEM = R"=====([
 "2D Black Hole@Outer X frequency,Inner X frequency,Inner Y frequency;;",
 "Wavesins@Speed,Brightness variation,Starting Color,Range of Colors,Color variation;;!",
 " ♫ Rocktaves@;,!;!",
-" ♫ 2D Akemi@Color speed,Dance toggle;Head palette,Arms & Legs,Eyes & Mouth;Face palette"
+" ♫ 2D Akemi@Color speed,Dance toggle;Head palette,Arms & Legs,Eyes & Mouth;Face palette",
+" ⚙️ Custom Effect@Speed,Intensity,Custom 1, Custom 2, Custom 3;!;!"
 ])=====";
 
 //WLEDSR: second part (not SR specific, but in latest SR, not in AC (Pallettes added in WLEDSR from Retro Clown->END))

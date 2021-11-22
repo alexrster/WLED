@@ -26,6 +26,9 @@
 
 #include "FX.h"
 
+//WLEDSR Custom Effects
+#include "src/dependencies/arti/arti_wled.h"
+
 #define IBN 5100
 #define PALETTE_SOLID_WRAP (paletteBlend == 1 || paletteBlend == 3)
 
@@ -4116,10 +4119,6 @@ uint16_t WS2812FX::mode_aurora(void) {
 //
 
 
-// FastLED array, so we can refer to leds[i] instead of getPixel() and setPixel()
-CRGB leds[MAX_LEDS+1];                          // See const.h for a value of 1500. The plus 1 is just in case we go over with XY().
-// uint32_t dataStore[4096];                       // We are declaring a storage area or 64 x 64 (4096) words.
-
 
 // Sound reactive external variables.
 extern int sample;
@@ -5911,7 +5910,7 @@ uint16_t WS2812FX::mode_DJLight(void) {                   // Written by ??? Adap
   if (SEGENV.aux0 != secondHand) {                        // Triggered millis timing.
     SEGENV.aux0 = secondHand;
 
-    leds[realPixelIndex(mid)] = CRGB(fftResult[16]/2, fftResult[5]/2, fftResult[0]/2);
+    leds[realPixelIndex(mid)] = CRGB(fftResult[15]/2, fftResult[5]/2, fftResult[0]/2); // 16-> 15 as 16 is out of bounds
     leds[realPixelIndex(mid)].fadeToBlackBy(map(fftResult[1*4], 0, 255, 255, 10)); // TODO - Update
 
     //move to the left
@@ -6455,4 +6454,3 @@ uint16_t WS2812FX::mode_2DAkemi(void) {
 
   return FRAMETIME;
 } // mode_2DAkemi
-

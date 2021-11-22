@@ -1436,7 +1436,8 @@ function makeSeg() {
     var pend = parseInt(d.getElementById(`seg${lowestUnused -1}e`).value,10) + (cfg.comp.seglen?parseInt(d.getElementById(`seg${lowestUnused -1}s`).value,10):0);
     if (pend < ledCount) ns = pend;
   }
-  var cn = `<div class="seg">
+    //WLEDSR: table class changed from segt to infot. move Apply text and setSeg(${lowestUnused}) into the <table> instead of below the table and using absolute positions (sounds like improvement for AC as well)
+    var cn = `<div class="seg">
       <div class="segname newseg">
         New segment ${lowestUnused}
         <i class="icons edit-icon expanded" onclick="tglSegn(${lowestUnused})">&#xe2c6;</i>
@@ -1444,18 +1445,19 @@ function makeSeg() {
       <br>
       <div class="segin expanded">
         <input type="text" class="ptxt stxt noslide" id="seg${lowestUnused}t" autocomplete="off" maxlength=32 value="" placeholder="Enter name..."/>
-        <table class="segt">
+        <table class="infot">
           <tr>
             <td class="segtd">Start LED</td>
             <td class="segtd">${cfg.comp.seglen?"Length":"Stop LED"}</td>
+            <td class="segtd">Apply</td>
           </tr>
           <tr>
             <td class="segtd"><input class="noslide segn" id="seg${lowestUnused}s" type="number" min="0" max="${ledCount-1}" value="${ns}" oninput="updateLen(${lowestUnused})"></td>
             <td class="segtd"><input class="noslide segn" id="seg${lowestUnused}e" type="number" min="0" max="${ledCount-(cfg.comp.seglen?ns:0)}" value="${ledCount-(cfg.comp.seglen?ns:0)}" oninput="updateLen(${lowestUnused})"></td>
+            <td class="segtd"><i class="icons e-icon cnf cnf-s" id="segc${lowestUnused}" onclick="setSeg(${lowestUnused}); resetUtil();">&#xe390;</i></td>
           </tr>
         </table>
         <div class="h" id="seg${lowestUnused}len">${ledCount - ns} LED${ledCount - ns >1 ? "s":""}</div>
-        <i class="icons e-icon cnf cnf-s half" id="segc${lowestUnused}" onclick="setSeg(${lowestUnused}); resetUtil();">&#xe390;</i>
       </div>
     </div>`;
   d.getElementById('segutil').innerHTML = cn;
@@ -1475,14 +1477,16 @@ var plJson = {"0":{
   "end": 0
 }};
 
-var plSelContent = "";
-function makePlSel(arr) {
-  plSelContent = "";
-  for (var i = 0; i < arr.length; i++) {
-    var n = arr[i][1].n ? arr[i][1].n : "Preset " + arr[i][0];
-    if (arr[i][1].playlist && arr[i][1].playlist.ps) continue; // remove playlists, sub-playlists not yet supported
-    plSelContent += `<option value=${arr[i][0]}>${n}</option>`
-  }
+function makePlSel(incPl=false) {
+	var plSelContent = "";
+	delete pJson["0"];	// remove filler preset
+	var arr = Object.entries(pJson);
+	for (var i = 0; i < arr.length; i++) {
+		var n = arr[i][1].n ? arr[i][1].n : "Preset " + arr[i][0];
+		if (!incPl && arr[i][1].playlist && arr[i][1].playlist.ps) continue; //remove playlists, sub-playlists not yet supported
+		plSelContent += `<option value=${arr[i][0]}>${n}</option>`
+	}
+	return plSelContent;
 }
 
 function refreshPlE(p) {
@@ -1569,8 +1573,8 @@ function makeP(i,pl) {
   <div class="c">Repeat <input class="noslide" type="number" id="pl${i}rp" oninput="plR(${i})" max=127 min=0 value=${rep>0?rep:1}> times</div>
   End preset:<br>
   <select class="btn sel sel-ple" id="pl${i}selEnd" onchange="plR(${i})" data-val=${plJson[i].end?plJson[i].end:0}>
-    <option value=0>None</option>
-    ${plSelContent}
+		<option value=0>None</option>
+    ${makePlSel(true)}
   </select>
   </div>
   <button class="btn btn-i btn-p" onclick="testPl(${i}, this)"><i class='icons btn-icon'>&#xe139;</i>Test</button>`;
@@ -1628,7 +1632,7 @@ function makePlEntry(p,i) {
   return `
   <div class="plentry">
     <select class="btn sel sel-pl" onchange="plePs(${p},${i},this)" data-val=${plJson[p].ps[i]} data-index=${i}>
-      ${plSelContent}
+		${makePlSel()}
     </select>
     <button class="btn btn-i btn-xs btn-pl-del" onclick="delPl(${p},${i})"><i class="icons btn-icon">&#xe037;</i></button>
     <div class="h plnl">Duration</div><div class="h plnl">Transition</div><div class="h pli">#${i+1}</div><br>
