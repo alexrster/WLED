@@ -410,7 +410,9 @@ void WLED::setup()
   #endif
 
     // if (doPublishMqtt) publishMqtt();
+#ifndef WLED_DISABLE_INFRARED
     initIR();
+#endif
 }
 
 void WLED::beginStrip()
