@@ -417,6 +417,8 @@ bool deserializeState(JsonObject root, byte callMode, byte presetId)
       if (!presetId) unloadPlaylist(); //stop playlist if preset changed manually
       if (ps >= presetCycMin && ps <= presetCycMax) presetCycCurr = ps;
       applyPreset(ps, callMode);
+
+      doPublishMqtt = true;
       return stateResponse;
     }
 
@@ -440,6 +442,7 @@ bool deserializeState(JsonObject root, byte callMode, byte presetId)
 
   stateUpdated(callMode);
 
+  doPublishMqtt = true;
   return stateResponse;
 }
 

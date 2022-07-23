@@ -31,7 +31,7 @@
 #define WLED_DISABLE_ALEXA         // saves 11kb
 #define WLED_DISABLE_BLYNK         // saves 6kb
 #define WLED_DISABLE_HUESYNC       // saves 4kb
-#define WLED_DISABLE_INFRARED      // there is no pin left for this on ESP8266-01, saves 12kb
+// #define WLED_DISABLE_INFRARED      // there is no pin left for this on ESP8266-01, saves 12kb
 #ifndef WLED_DISABLE_MQTT
   #define WLED_ENABLE_MQTT         // saves 12kb
 #endif
@@ -656,6 +656,10 @@ WLED_GLOBAL byte optionType;
 
 WLED_GLOBAL bool doReboot _INIT(false);        // flag to initiate reboot from async handlers
 WLED_GLOBAL bool doPublishMqtt _INIT(false);
+WLED_GLOBAL bool doPublishMqttIr _INIT(false);
+
+WLED_GLOBAL uint64_t lastIrValue;
+WLED_GLOBAL char mqttIrTopic[36];
 
 // server library objects
 WLED_GLOBAL AsyncWebServer server _INIT_N(((80)));
@@ -690,6 +694,8 @@ WLED_GLOBAL StaticJsonDocument<JSON_BUFFER_SIZE> doc;
 WLED_GLOBAL volatile uint8_t jsonBufferLock _INIT(0);
 
 WLED_GLOBAL TaskHandle_t FFT_Task; //WLEDSR: Moved from audio_reactive.h to global as OTA updates sets it to idle
+WLED_GLOBAL TaskHandle_t MQTT_Task;
+WLED_GLOBAL TaskHandle_t IR_Task;
 
 // enable additional debug output
 #ifdef WLED_DEBUG

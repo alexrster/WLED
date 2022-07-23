@@ -54,6 +54,8 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventTyp
             wsLiveClientId = root["lv"] ? client->id() : 0;
           } else {
             verboseResponse = deserializeState(root);
+            fileDoc = nullptr;
+            doPublishMqtt = true;
             if (!interfaceUpdateCallMode) {
               //special case, only on playlist load, avoid sending twice in rapid succession
               if (millis() - lastInterfaceUpdate > (INTERFACE_UPDATE_COOLDOWN -300)) verboseResponse = false;

@@ -1087,5 +1087,7 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
   pos = req.indexOf(F("IN"));
   if (pos < 1) XML_response(request);
 
+  doPublishMqtt = true;
+
   return true;
 }

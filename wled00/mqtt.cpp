@@ -7,6 +7,8 @@
 #ifdef WLED_ENABLE_MQTT
 #define MQTT_KEEP_ALIVE_TIME 60    // contact the MQTT broker every 60 seconds
 
+unsigned long lastMqttPublish = 0;
+
 void parseMQTTBriPayload(char* payload)
 {
   if      (strstr(payload, "ON") || strstr(payload, "on") || strstr(payload, "true")) {bri = briLast; stateUpdated(1);}
@@ -114,39 +116,89 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
   delete[] payloadStr;
 }
 
+void publishMqttJson()
+{
+  auto doc = new StaticJsonDocument<4096>();
+  JsonObject state = doc->createNestedObject("state");
+  serializeState(state);
+
+  char buf[4096];
+  auto len = serializeJson(*doc, buf, 4096);
+  
+  char subuf[48];
+  strlcpy(subuf, mqttDeviceTopic, 33);
+  strcat_P(subuf, PSTR("/state"));
+  mqtt->publish(subuf, 0, false, buf, len);
+
+  delete doc;
+}
 
 void publishMqtt()
 {
+  if (!WLED_MQTT_CONNECTED) return;
+  if (millis() - lastMqttPublish < 1000) return;
+
+  DEBUG_PRINTLN(F("Publish MQTT"));
+
   doPublishMqtt = false;
+  lastMqttPublish = millis();
+
+  publishMqttJson();
+
+  // char s[10];
+  // char subuf[38];
+
+  // sprintf_P(s, PSTR("%u"), bri);
+  // strlcpy(subuf, mqttDeviceTopic, 33);
+  // strcat_P(subuf, PSTR("/g"));
+  // mqtt->publish(subuf, 0, true, s);
+
+  // sprintf_P(s, PSTR("#%06X"), (col[3] << 24) | (col[0] << 16) | (col[1] << 8) | (col[2]));
+  // strlcpy(subuf, mqttDeviceTopic, 33);
+  // strcat_P(subuf, PSTR("/c"));
+  // mqtt->publish(subuf, 0, true, s);
+
+  // strlcpy(subuf, mqttDeviceTopic, 33);
+  // strcat_P(subuf, PSTR("/status"));
+  // mqtt->publish(subuf, 0, true, "online");
+
+  // char apires[1024];
+  // XML_response(nullptr, apires);
+  // strlcpy(subuf, mqttDeviceTopic, 33);
+  // strcat_P(subuf, PSTR("/v"));
+  // mqtt->publish(subuf, 0, false, apires);
+}
+
+void publishMqttIr()
+{
   if (!WLED_MQTT_CONNECTED) return;
   DEBUG_PRINTLN(F("Publish MQTT"));
 
-  char s[10];
-  char subuf[38];
+  doPublishMqttIr = false;
 
-  sprintf_P(s, PSTR("%u"), bri);
-  strlcpy(subuf, mqttDeviceTopic, 33);
-  strcat_P(subuf, PSTR("/g"));
-  mqtt->publish(subuf, 0, true, s);         // retain message
+  if (lastIrValue != 0)
+  {
+    char lastIrMessage[16];
+    int lastIrMessageLen;
 
-  sprintf_P(s, PSTR("#%06X"), (col[3] << 24) | (col[0] << 16) | (col[1] << 8) | (col[2]));
-  strlcpy(subuf, mqttDeviceTopic, 33);
-  strcat_P(subuf, PSTR("/c"));
-  mqtt->publish(subuf, 0, true, s);         // retain message
-
-  strlcpy(subuf, mqttDeviceTopic, 33);
-  strcat_P(subuf, PSTR("/status"));
-  mqtt->publish(subuf, 0, true, "online");  // retain message for a LWT
-
-  char apires[1024];                        // allocating 1024 bytes from stack can be risky
-  XML_response(nullptr, apires);
-  strlcpy(subuf, mqttDeviceTopic, 33);
-  strcat_P(subuf, PSTR("/v"));
-  mqtt->publish(subuf, 0, false, apires);   // do not retain message
+    lastIrMessageLen = sprintf(lastIrMessage, "%X", (uint32_t)lastIrValue);
+    if (lastIrMessageLen > 0) mqtt->publish(mqttIrTopic, 0, false, lastIrMessage, lastIrMessageLen);
+  }
 }
 
-
 //HA autodiscovery was removed in favor of the native integration in HA v0.102.0
+
+void mqtt_loop(void* _) {
+  DEBUG_PRINT(F("MQTT running at core: #"));
+  DEBUG_PRINTLN(xPortGetCoreID());
+
+  while (1) {
+    if (doPublishMqtt) publishMqtt();
+    if (doPublishMqttIr) publishMqttIr();
+
+    delay(50);
+  }
+}
 
 bool initMqtt()
 {
@@ -175,6 +227,9 @@ bool initMqtt()
   mqtt->setWill(mqttStatusTopic, 0, true, "offline"); // LWT message
   mqtt->setKeepAlive(MQTT_KEEP_ALIVE_TIME);
   mqtt->connect();
+
+  if (MQTT_Task == NULL) xTaskCreatePinnedToCore(mqtt_loop, "MQTT", 10000, NULL, 1, &MQTT_Task, 0);
+
   return true;
 }
 
